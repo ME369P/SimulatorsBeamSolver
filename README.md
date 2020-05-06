@@ -54,16 +54,18 @@ Misc:
 	Input format for BeamProblem:
 		BeamProblem('Material', Cross Section Object(Cross Section dimensions), Length, Number of Elements, Boundary conditions, Load)
 
-	Outputs from BeamProblem(....).Solution():
+	Outputs from beamProblem(....).solution():
 		{'Coordinates': numpy array of coordinates,
 		'Displacement Magnitudes': numpy array of displacement magnitudes,
 		'Displacement Vectors': numpy array of displacement vectors,
 		'Stress Magnitudes': numpy array of stress magnitudes}
 
-	Loading input to BeamProblem must be specified as:
+	Loading input to beamProblem must be specified as:
 		For uniform loads:
-			load('uniform',(x value, y value, z value)) where the units for the x, y, or z values are in N/m^3
+			load('uniform', body_force = (x value, y value, z value)) where the units for the x, y, or z values are in N/m^3
 		For no loading (except gravity)
 			None
 		For point loads:
-			TBD
+			load('point', location = (x coordinate, y coordinate, z coordinate), magnitude = (x value, y value, z value), direction = (x,y,z)) 
+			Location and magnitude are in meters and Newtons, respectively
+			Direction vector gets scaled automatically.
