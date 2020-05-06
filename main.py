@@ -2,6 +2,8 @@ from fenics import *
 from ufl import nabla_div
 import numpy as np
 from mshr import *
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 class Rectangle:
     def __init__(self,b,h):
@@ -71,11 +73,33 @@ class Lshape:
         return generate_mesh(domain,n)
 
 class load:
-    def __init__(self,type,value):
+    def __init__(self,type,body_force=None,location=None,magnitude=None,direction=None):
         self.type = type
-        self.value = value
+        if self.type == 'uniform':
+            self.body_force = body_force
+        elif self.type == 'point':
+            self.location = location
+            self.magnitude = magnitude
+            self.direction = direction
 
-class BeamProblem:
+def scale(direction):
+    x,y,z = direction[0],direction[1],direction[2]
+    magnitude = (x**2 + y**2 + z**2)**0.5
+    return tuple([(1e-4/magnitude)*i for i in list(direction)])
+
+class Delta(UserExpression):
+    def __init__(self, eps, x0, **kwargs):
+        self.eps = eps
+        self.x0 = x0
+        UserExpression.__init__(self, **kwargs) 
+    def eval(self, values, x):
+        eps = self.eps
+        values[0] = eps[0]/pi/(np.linalg.norm(x-self.x0)**2 + eps[0]**2)
+        values[1] = eps[1]/pi/(np.linalg.norm(x-self.x0)**2 + eps[1]**2)
+        values[2] = eps[2]/pi/(np.linalg.norm(x-self.x0)**2 + eps[2]**2)
+    def value_shape(self): return (3, )
+
+class beamProblem:
     
     def __init__(self,material,cross_section,length,num_elements,bc_input,load_input):
         self.material = material
@@ -95,7 +119,7 @@ class BeamProblem:
         self.mu=E/(2*(1+nu))
         self.lambda_=E*nu/((1+nu)*(1-2*nu))
     
-    def Solution(self):
+    def solution(self):
         
         # input variables
         rho = self.rho
@@ -127,20 +151,28 @@ class BeamProblem:
         u = TrialFunction(V)
         d = u.geometric_dimension() # space dimension
         v = TestFunction(V)
+        T = Constant((0,0,0))
+        a = inner(sigma(u), epsilon(v))*dx
+        
+        # Apply uniform load if called for
         if bool(self.load_input) and self.load_input.type == 'uniform':
-            u_l = self.load_input.value
+            u_l = self.load_input.body_force
             f = Constant((0+u_l[0], 0+u_l[1], -rho*g+u_l[2]))
         else:
             f = Constant((0,0,-rho*g))
-        T = Constant((0,0,0))
-        a = inner(sigma(u), epsilon(v))*dx
-        L = dot(f, v)*dx + dot(T, v)*ds
         
+        # Apply point load if called for
+        if bool(self.load_input) and self.load_input.type == 'point':
+            p_l = self.load_input
+            delta = Delta(eps=scale(p_l.direction), x0=p_l.location, degree=5)
+            L = dot(f, v)*dx + dot(T, v)*ds + inner(Constant(p_l.magnitude)*delta, v)*dx
+        else:
+            L = dot(f, v)*dx + dot(T, v)*ds
+        
+
         # Compute solution
         u = Function(V)
-        ps = PointSource(V.sub(1),Point(self.length,0.1,0.1),-1e25)
-        ps.apply(u.vector())
-        solve(a == L, u, bc)
+        solve(a==L, u, bc)
         
         s = sigma(u) - (1./3)*tr(sigma(u))*Identity(d) # deviatoric stress
         von_Mises = sqrt(3./2*inner(s, s))
@@ -153,26 +185,12 @@ class BeamProblem:
         
         # Important data outputs
         coordinates = V.tabulate_dof_coordinates().reshape((-1, mesh.geometry().dim()))
-        u_mag_array = u_magnitude.vector()[:]
-        u_vec_array = np.reshape(u.vector()[:],(np.shape(coordinates)))
-        von_Mises_array = von_Mises.vector()[:]
-        return {'Coordinates':coordinates,
-                'Displacement Magnitudes':u_mag_array, 
-                'Displacement Vectors':u_vec_array, 
-                'Stress Magnitudes': von_Mises_array}
-        
-    def Results(self, solution):
-        import matplotlib.pyplot as plt
-        #from matplotlib.colors import BoundaryNorm #For contour
-        #from matplotlib.ticker import MaxNLocator #For contour
-        from mpl_toolkits.mplot3d import Axes3D
-        
-        Len = self.length
-        #Create arrays for each reference axis
-        coordinates = solution['Coordinates']
-        um_plot = solution['Displacement Magnitudes']
-        uv_plot = solution['Displacement Vectors']
-        vm_plot = solution['Stress Magnitudes']
+        # Displacement magnitudes
+        um_plot = u_magnitude.vector()[:]
+        # Displacement vectors
+        uv_plot = np.reshape(u.vector()[:],(np.shape(coordinates)))
+        # Stress magnitudes
+        vm_plot = von_Mises.vector()[:]
         
         #xyz coordinates
         x_plot3d = coordinates[:,0]
@@ -183,52 +201,12 @@ class BeamProblem:
         u_vec_j = uv_plot[:,1]
         u_vec_k = uv_plot[:,2]
         
-        scaling = (z_plot3d.max() - z_plot3d.min()) / abs(u_vec_k).max()
+        scaling = (z_plot3d.max() - z_plot3d.min()) / abs(um_plot).max()
         
         x_plot_def = x_plot3d + scaling * u_vec_i
         y_plot_def = y_plot3d + scaling * u_vec_j
         z_plot_def = z_plot3d + scaling * u_vec_k
-        '''
-        #For 2d color plots: (Since there's the code for it, function to view x-section contour?)
-        #Needs to have one more in each dimension
-        #Quantity being plotted should lie in middle of boxes delineated by these
-        x_plot = np.zeros((x_div+1,z_div+1))
-        #y_plot = np.zeros((x_div+1,y_div+1))
-        y_mid = round((Wid / y_div) * (y_div // 2),8) #Central y-value
-        z_plot = np.zeros((x_div+1,z_div+1))
-        '''
-        '''
-        #For 3d color and quiver plots
-        x_plot3d = np.zeros((x_div,y_div,z_div))
-        y_plot3d = np.zeros((x_div,y_div,z_div))
-        z_plot3d = np.zeros((x_div,y_div,z_div))
-        #Outputs to plot
-        um_plot = np.empty((x_div,y_div,z_div))
-        um_plot[:,:,:] = np.nan
-        uv_plot = np.empty((x_div,y_div,z_div))
-        uv_plot[:,:,:] = np.nan
-        vm_plot = np.empty((x_div,y_div,z_div))
-        vm_plot[:,:,:] = np.nan
-        for i in range(x_div):
-            for j in range(y_div):
-                for k in range(z_div):
-                    x_coord = round((Len / x_div) * i,8)
-                    y_coord = round((Wid / y_div) * j,8)
-                    z_coord = round((Wid / z_div) * k,8)
-                    
-                    #x_plot[j,k] = x_coord 
-                    #y_plot[i,k] = y_coord
-                    #z_plot[i,j] = z_coord
-                    
-                    x_plot3d[i,j,k] = x_coord
-                    y_plot3d[i,j,k] = y_coord
-                    z_plot3d[i,j,k] = z_coord
-                    if (x_coord,y_coord,z_coord) in u_mag_dict.keys():
-                        #Change y_mid to y_coord for 3D when implemented
-                        um_plot[i,j,k] = u_mag_dict[(x_coord,y_coord,z_coord)]
-                        (u_vec_i,u_vec_j,u_vec_k) = np.array(u_vec_dict[(x_coord,y_coord,z_coord)])
-                        vm_plot[i,j,k] = von_Mises_dict[(x_coord,y_coord,z_coord)]
-        '''
+        
         #Plot Results
         #%matplotlib auto #Uncomment to set backend if ipy file 
         #fig, (ax_u_mag, ax_u_vec, ax_vm) = plt.subplots(nrows=3)
@@ -236,26 +214,11 @@ class BeamProblem:
         fig.tight_layout()
         cmap = plt.get_cmap('jet')
         
-        '''
-        #Function to request contour cross-section along beam?
-        ax_um = fig.add_subplot(3,1,1)
-        levels_um = MaxNLocator(nbins=15).tick_values(um_plot.min(),um_plot.max())
-        norm_um = BoundaryNorm(levels_um, ncolors=cmap.N, clip=True)
-        #Contour:
-        cf_um = ax_um.contourf(x_plot[:-1, :-1] + (Len / x_div)/2., z_plot[:-1, :-1] + (Wid / z_div)/2., um_plot, levels=levels_um, cmap=cmap)
-        fig.colorbar(cf_um,ax=ax_u_mag)
-        #Boxes:
-        #im_um = ax_um.pcolormesh(x_plot,z_plot,um_plot, cmap=cmap, norm=norm_um)
-        #fig.colorbar(im_um, ax=ax_um)
-        ax_um.set_title('Displacement magnitudes')
-        ax_um.set_xlabel('x')
-        ax_um.set_ylabel('z')
-        '''
         #Plotting displacement
         ax_uv = fig.add_subplot(2,1,1, projection='3d')
         im_um = ax_uv.scatter(x_plot_def,y_plot_def,z_plot_def, c=um_plot.ravel(), cmap=cmap)
         fig.colorbar(im_um, ax=ax_uv, format = '%.0e')
-        ax_uv.auto_scale_xyz([0,Len],[-Len/2,Len/2],[-Len/2,Len/2])
+        ax_uv.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
         ax_uv.set_title('Displacement (m)\nVisual Deflection = {:.3e}:1'.format(scaling))
         ax_uv.set_xlabel('x (m)')
         ax_uv.set_ylabel('y (m)')
@@ -264,28 +227,16 @@ class BeamProblem:
         #Plotting von Mises stress
         ax_vm = fig.add_subplot(2,1,2, projection='3d')
         im_vm = ax_vm.scatter(x_plot_def,y_plot_def,z_plot_def, c=vm_plot.ravel(), cmap=cmap)
-        ax_vm.auto_scale_xyz([0,Len],[-Len/2,Len/2],[-Len/2,Len/2])
+        ax_vm.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
         fig.colorbar(im_vm, ax=ax_vm, format='%.0e')
         ax_vm.set_title('von Mises Stress (Pa)\nVisual Deflection = {:.3e}:1'.format(scaling))
         ax_vm.set_xlabel('x (m)')
         ax_vm.set_ylabel('y (m)')
         ax_vm.set_zlabel('z (m)')
-        '''
-        #Function to request contour cross-section along beam?
-        #cmap = plt.get_cmap('jet')
-        levels_vm = MaxNLocator(nbins=15).tick_values(vm_plot.min(),von_Mises_plot.max())
-        norm_vm = BoundaryNorm(levels_vm, ncolors=cmap.N, clip=True)
-        #Contour:
-        cf_vm = ax_vm.contourf(x_plot[:-1, :-1] + (Len / x_div)/2., z_plot[:-1, :-1] + (Wid / z_div)/2., vonm_plot, levels=levels_vm, cmap=cmap)
-        fig.colorbar(cf_vm,ax=ax_vm)
-        #Boxes:
-        #im_vm = ax_vm.pcolormesh(x_plot,z_plot,vm_plot, cmap=cmap, norm=norm_vm)
-        #fig.colorbar(im_vm, ax=ax_vm)
-        '''
         
         plt.show()
-    
-#Make a parent class for cross-sections to force implementation of beam mesh?
-beam = BeamProblem('steel', Rectangle(0.2,0.2), 1, 16, 'BC', None)
-output = beam.Solution()
-beam.Results(output)
+        
+        return {'Coordinates':coordinates,
+                'Displacement Magnitudes':um_plot, 
+                'Displacement Vectors':uv_plot, 
+                'Stress Magnitudes': vm_plot}
