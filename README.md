@@ -6,14 +6,17 @@ Derek Hornung (deh2434)
 Brian Tran (bat2285)
 
 Overall Objective:
+
 	Create a user-friendly program that can solve beam deflection problems based on user inputs of loading, cross-section geometries, and boundary conditions.
 
 Packages to be used:
+
 	FEniCS
 	numpy
 	matplotlib
 
 Inputs:
+
 	Loading
 		Point (in the works)
 		Uniform
@@ -26,6 +29,7 @@ Inputs:
 		Rotating-Rotating (in the works)
 
 Outputs:
+
 	Location and value of minimum safety factor
 	Location and value of maximum stress
 	Location and value of maximum deflection
@@ -34,6 +38,7 @@ Outputs:
 	Deformed 3D scatter plot
 
 Useful links:
+
 	https://www.encyclopediaofmath.org/index.php/Lam%C3%A9_constants
 	https://www.efunda.com/math/areas/IbeamIndex.cfm
 	https://fenicsproject.org/pub/tutorial/pdf/fenics-tutorial-vol1.pdf
