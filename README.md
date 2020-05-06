@@ -40,7 +40,8 @@ Useful links:
   https://fenics-shells.readthedocs.io/en/latest/demo/reissner-mindlin-simply-supported/demo_reissner-mindlin-simply-supported.py.html
 
 Misc:
-    x is the axial direction, y is the horizontal transverse direction, and z is the vertical (gravity-affected) transverse direction
+
+	x is the axial direction, y is the horizontal transverse direction, and z is the vertical (gravity-affected) transverse direction
     
 	Input format for BeamProblem:
 		BeamProblem('Material', Cross Section Object(Cross Section dimensions), Length, Number of Elements, Boundary conditions, Load)
