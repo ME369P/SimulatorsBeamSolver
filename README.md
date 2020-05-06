@@ -39,10 +39,10 @@ Outputs:
 
 Useful links:
 
-	https://www.encyclopediaofmath.org/index.php/Lam%C3%A9_constants
-	https://www.efunda.com/math/areas/IbeamIndex.cfm
-	https://fenicsproject.org/pub/tutorial/pdf/fenics-tutorial-vol1.pdf
-  https://fenics-shells.readthedocs.io/en/latest/demo/reissner-mindlin-simply-supported/demo_reissner-mindlin-simply-supported.py.html
+https://www.encyclopediaofmath.org/index.php/Lam%C3%A9_constants
+https://www.efunda.com/math/areas/IbeamIndex.cfm
+https://fenicsproject.org/pub/tutorial/pdf/fenics-tutorial-vol1.pdf
+https://fenics-shells.readthedocs.io/en/latest/demo/reissner-mindlin-simply-supported/demo_reissner-mindlin-simply-supported.py.html
 
 Misc:
 
