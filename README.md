@@ -18,15 +18,15 @@ Packages to be used:
 Inputs:
 
 	Loading
-		Point (in the works)
+		Point
 		Uniform
 		Variable distributed (in the works)
 	Beam or ball valve handle type (standard)
 	Boundary conditions
 		Clamped-Free
-		Clamped-Clamped (in the works)
-		Clamped-Rotating (in the works)
-		Rotating-Rotating (in the works)
+		Clamped-Clamped
+		Clamped-Rotating
+		Rotating-Rotating
 
 Outputs:
 
@@ -67,5 +67,5 @@ Misc:
 			None
 		For point loads:
 			load('point', location = (x coordinate, y coordinate, z coordinate), magnitude = (x value, y value, z value), direction = (x,y,z)) 
-			Location and magnitude are in meters and Newtons, respectively
+			Location and magnitude are in meters and Newtons/m^3, respectively
 			Direction vector gets scaled automatically.
