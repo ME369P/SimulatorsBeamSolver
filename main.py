@@ -3,7 +3,6 @@ from ufl import nabla_div
 import numpy as np
 from mshr import *
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 class Rectangle:
     def __init__(self,b,h):
@@ -305,12 +304,21 @@ class beamProblem:
                 'Stress Magnitudes': vm_plot}
 
 # Example Problem
+        
+# Inputs
 material = 'steel'
-cross_section = Rectangle(0.2,0.2)
-length = 1.5
+b = 0.1
+h = 0.5
+cross_section = Rectangle(b,h)
+length = 2
 num_elements = 16
 boundary_conditions = 'clamped free'
-load_in = load('uniform', (0,1e6,0))
+load_in = load('point', location=(length,b/2,h/2), magnitude=1e9, direction=(0,0,-1))
 
+# Problem object
 beam = beamProblem(material, cross_section, length, num_elements, boundary_conditions, load_in)
+
+# Solution
 output = beam.solution()
+
+
