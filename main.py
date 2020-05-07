@@ -104,6 +104,7 @@ class beamProblem:
     def __init__(self,material,cross_section,length,num_elements,bc_input,load_input):
         self.material = material
         self.length = length
+        self.bc_input=bc_input
         self.num_elements = num_elements
         self.mainMesh = cross_section.BeamMesh(length,num_elements)
         self.load_input=load_input
@@ -123,6 +124,7 @@ class beamProblem:
         
         # input variables
         rho = self.rho
+        bc_input=self.bc_input
         
         # Other variables/constants
         mu = self.mu
@@ -135,9 +137,28 @@ class beamProblem:
         
         # Define boundary condition
         tol = 1E-14
-        def clamped_boundary(x, on_boundary):
+        def clamped_left(x, on_boundary):
             return on_boundary and x[0] < tol
-        bc = DirichletBC(V, Constant((0, 0, 0)), clamped_boundary)
+        def clamped_right(x, on_boundary):
+            return on_boundary and x[0] > (self.length-tol)
+        #defining rotating boundary functions
+        def all_boundary(x, on_boundary):
+            return on_boundary
+        def yaxis(x, on_boundary):
+            return on_boundary and x[1] > (self.length-tol)
+        def zaxis(x, on_boundary):
+            return on_boundary and x[2] > (self.length-tol)
+        
+        if bc_input=="clamped free":
+            bc=DirichletBC(V,Constant((0,0,0)),clamped_left)
+        elif bc_input=="clamped clamped":
+            bc1=DirichletBC(V,Constant((0,0,0)),clamped_left)
+            bc2=DirichletBC(V,Constant((0,0,0)),clamped_right)
+            bc=[bc1, bc2]
+        elif bc_input=="clamped pinned":
+            bc1=DirichletBC(V,Constant((0,0,0)),all_boundary) #not sure if correct or should use clamped_left
+            bc2=DirichletBC(V,Constant((0,0,0)),yaxis)
+            bc=[bc1, bc2]
         
         # Define strain and stress
         def epsilon(u):
@@ -240,3 +261,6 @@ class beamProblem:
                 'Displacement Magnitudes':um_plot, 
                 'Displacement Vectors':uv_plot, 
                 'Stress Magnitudes': vm_plot}
+
+beam = beamProblem('steel', Rectangle(0.2,0.2), 1, 16, "clamped pinned", None)
+output = beam.solution()
