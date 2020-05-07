@@ -145,9 +145,11 @@ class beamProblem:
         def all_boundary(x, on_boundary):
             return on_boundary
         def yaxis(x, on_boundary):
-            return on_boundary and x[1] > (self.length-tol)
-        def zaxis(x, on_boundary):
-            return on_boundary and x[2] > (self.length-tol)
+            return on_boundary and near(x[1], 0, tol)
+        def pinned_right(x, on_boundary):
+            return on_boundary and near(x[2], 0, tol) and near(x[0],self.length,tol)
+        def pinned_left(x, on_boundary):
+            return on_boundary and near(x[2], 0, tol) and near(x[0],0,tol)
         
         if bc_input=="clamped free":
             bc=DirichletBC(V,Constant((0,0,0)),clamped_left)
@@ -156,8 +158,12 @@ class beamProblem:
             bc2=DirichletBC(V,Constant((0,0,0)),clamped_right)
             bc=[bc1, bc2]
         elif bc_input=="clamped pinned":
-            bc1=DirichletBC(V,Constant((0,0,0)),all_boundary) #not sure if correct or should use clamped_left
-            bc2=DirichletBC(V,Constant((0,0,0)),yaxis)
+            bc1=DirichletBC(V,Constant((0,0,0)),clamped_left)
+            bc2=DirichletBC(V,Constant((0,0,0)),pinned_right)
+            bc=[bc1, bc2]
+        elif bc_input=="pinned pinned":
+            bc1=DirichletBC(V,Constant((0,0,0)),pinned_left)
+            bc2=DirichletBC(V,Constant((0,0,0)),pinned_right)
             bc=[bc1, bc2]
         
         # Define strain and stress
@@ -362,10 +368,10 @@ class beamProblem:
 # Example Problem
 material = 'steel'
 cross_section = Rectangle(0.2,0.2)
-length = 1.0
+length = 1.5
 num_elements = 16
-boundary_conditions = 'clamped clamped'
-load = None
+boundary_conditions = 'clamped free'
+load_in = load('uniform', (0,1e6,0))
 
-bp = beamProblem(material, cross_section, length, num_elements, boundary_conditions, load)
-output = bp.solution()
+beam = beamProblem(material, cross_section, length, num_elements, boundary_conditions, load_in)
+output = beam.solution()
