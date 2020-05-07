@@ -3,7 +3,9 @@ from ufl import nabla_div
 import numpy as np
 from mshr import *
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
+# Cross section classes
 class Rectangle:
     def __init__(self,b,h):
         self.b = b
@@ -81,11 +83,13 @@ class load:
             self.magnitude = magnitude
             self.direction = direction
 
+# Function to scale direction of point loads
 def scale(direction):
     x,y,z = direction[0],direction[1],direction[2]
     magnitude = (x**2 + y**2 + z**2)**0.5
     return tuple([(1e-4/magnitude)*i for i in list(direction)])
 
+# Dirac delta function to approximate point loads
 class Delta(UserExpression):
     def __init__(self, eps, x0, **kwargs):
         self.eps = eps
@@ -98,6 +102,7 @@ class Delta(UserExpression):
         values[2] = eps[2]/pi/(np.linalg.norm(x-self.x0)**2 + eps[2]**2)
     def value_shape(self): return (3, )
 
+# Main beam problem class
 class beamProblem:
     
     def __init__(self,material,cross_section,length,num_elements,bc_input,load_input):
@@ -115,7 +120,8 @@ class beamProblem:
             self.rho=7700
         elif self.material=="aluminum":
             self.E=69e9
-            #insert more properties for aluminum
+            nu=0.334
+            self.rho=2700
         self.mu=self.E/(2*(1+nu))
         self.lambda_=self.E*nu/((1+nu)*(1-2*nu))
     
@@ -134,7 +140,7 @@ class beamProblem:
         mesh = self.mainMesh
         V = VectorFunctionSpace(mesh, 'P', 1)
         
-        # Define boundary condition
+        # Define boundary conditions
         tol = 1E-14
         def clamped_left(x, on_boundary):
             return on_boundary and x[0] < tol
@@ -320,5 +326,7 @@ beam = beamProblem(material, cross_section, length, num_elements, boundary_condi
 
 # Solution
 output = beam.solution()
+
+
 
 
