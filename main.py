@@ -106,7 +106,7 @@ class beamProblem:
         self.length = length
         self.bc_input=bc_input
         self.num_elements = num_elements
-        self.mainMesh = cross_section.BeamMesh(length,num_elements)
+        self.mainMesh = cross_section.BeamMesh(self.length,num_elements)
         self.load_input=load_input
         
         # material properties
@@ -140,7 +140,7 @@ class beamProblem:
         def clamped_left(x, on_boundary):
             return on_boundary and x[0] < tol
         def clamped_right(x, on_boundary):
-            return on_boundary and x[0] > (self.length-tol)
+            return on_boundary and near(x[0],self.length,tol)
         #defining rotating boundary functions
         def all_boundary(x, on_boundary):
             return on_boundary
@@ -359,5 +359,13 @@ class beamProblem:
                 'Displacement Vectors':uv_plot, 
                 'Stress Magnitudes': vm_plot}
 
-beam = beamProblem('steel', Rectangle(0.2,0.2), 1, 16, "clamped pinned", None) #Why does this have a split between deformed and not deformed?
-output = beam.solution()
+# Example Problem
+material = 'steel'
+cross_section = Rectangle(0.2,0.2)
+length = 1.0
+num_elements = 16
+boundary_conditions = 'clamped clamped'
+load = None
+
+bp = beamProblem(material, cross_section, length, num_elements, boundary_conditions, load)
+output = bp.solution()
