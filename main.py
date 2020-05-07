@@ -111,14 +111,14 @@ class beamProblem:
         
         # material properties
         if self.material=="steel":
-            E=200e9
+            self.E=200e9
             nu=0.285
             self.rho=7700
         elif self.material=="aluminum":
-            E=69e9
+            self.E=69e9
             #insert more properties for aluminum
-        self.mu=E/(2*(1+nu))
-        self.lambda_=E*nu/((1+nu)*(1-2*nu))
+        self.mu=self.E/(2*(1+nu))
+        self.lambda_=self.E*nu/((1+nu)*(1-2*nu))
     
     def solution(self):
         
@@ -212,48 +212,145 @@ class beamProblem:
         uv_plot = np.reshape(u.vector()[:],(np.shape(coordinates)))
         # Stress magnitudes
         vm_plot = von_Mises.vector()[:]
+        # Safety factor magnitudes
+        sf_plot = []
+        for i in range(vm_plot.size):
+            sf_plot.append(abs(self.E / vm_plot[i]))
+        sf_plot = np.array(sf_plot)
+        #Forcing maximum displayable SF to see where part is close to failure
+        high_sf = False
+        for i in range(sf_plot.size):
+            if sf_plot[i] > 3: #Change if need different threshold for plotted SF
+                sf_plot[i] = 3
+                high_sf = True
         
+        #Plotting:
         #xyz coordinates
         x_plot3d = coordinates[:,0]
         y_plot3d = coordinates[:,1]
         z_plot3d = coordinates[:,2]
-        #for (x_coord,y_coord,z_coord) in coordinates:
+        #Change in xyz coordinates
         u_vec_i = uv_plot[:,0]
         u_vec_j = uv_plot[:,1]
         u_vec_k = uv_plot[:,2]
-        
+        #Scale factor for displaying change in coordinates
         scaling = (z_plot3d.max() - z_plot3d.min()) / abs(um_plot).max()
-        
+        #Deformed xyz coordinates
         x_plot_def = x_plot3d + scaling * u_vec_i
         y_plot_def = y_plot3d + scaling * u_vec_j
         z_plot_def = z_plot3d + scaling * u_vec_k
         
+        #Finding where deformation and stress at each at a maximum
+        loc_u_max = []
+        um_plot_max = []
+        loc_u_max_def = [] #Stores deformed location of max u to plot
+        loc_vm_max = []
+        vm_plot_max = []
+        loc_vm_max_def = [] #Stores deformed location of max stress to plot
+        for i in range(um_plot.size):
+            if um_plot[i] == um_plot.max():
+                um_plot_max.append(um_plot.max())
+                loc_u_max = list(coordinates[i])
+                loc_next_def = []
+                loc_next_def.append(coordinates[i,0] + scaling * u_vec_i[i])
+                loc_next_def.append(coordinates[i,1] + scaling * u_vec_j[i])
+                loc_next_def.append(coordinates[i,2] + scaling * u_vec_k[i])
+                loc_u_max_def.append(loc_next_def)
+            if vm_plot[i] == vm_plot.max():
+                vm_plot_max.append(vm_plot.max())
+                loc_vm_max = list(coordinates[i])
+                loc_next_def = []
+                loc_next_def.append(coordinates[i,0] + scaling * u_vec_i[i])
+                loc_next_def.append(coordinates[i,1] + scaling * u_vec_j[i])
+                loc_next_def.append(coordinates[i,2] + scaling * u_vec_k[i])
+                loc_vm_max_def.append(loc_next_def)
+        #Convert to numpy arrays for plotting
+        um_plot_max = np.array(um_plot_max)
+        loc_u_max_def = np.array(loc_u_max_def)
+        vm_plot_max = np.array(vm_plot_max)
+        loc_vm_max_def = np.array(loc_vm_max_def)
+        
         #Plot Results
         #%matplotlib auto #Uncomment to set backend if ipy file 
-        #fig, (ax_u_mag, ax_u_vec, ax_vm) = plt.subplots(nrows=3)
-        fig = plt.figure(figsize=plt.figaspect(1.8))
+        fig = plt.figure(figsize=plt.figaspect(1.35))
         fig.tight_layout()
         cmap = plt.get_cmap('jet')
         
         #Plotting displacement
-        ax_uv = fig.add_subplot(2,1,1, projection='3d')
+        ax_uv = fig.add_subplot(3,2,1, projection='3d')
         im_um = ax_uv.scatter(x_plot_def,y_plot_def,z_plot_def, c=um_plot.ravel(), cmap=cmap)
-        fig.colorbar(im_um, ax=ax_uv, format = '%.0e')
+        fig.colorbar(im_um, ax=ax_uv, format = '%.0E')
         ax_uv.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
-        ax_uv.set_title('Displacement (m)\nVisual Deflection = {:.3e}:1'.format(scaling))
+        ax_uv.set_title('Displacement (m)\nVisual Deflection = {:.3E}:1'.format(scaling))
         ax_uv.set_xlabel('x (m)')
         ax_uv.set_ylabel('y (m)')
         ax_uv.set_zlabel('z (m)')
         
+        #Plotting displacement with marker and label for max value
+        ax_uv2 = fig.add_subplot(3,2,2, projection='3d')
+        im_um2 = ax_uv2.scatter(x_plot_def,y_plot_def,z_plot_def, c=um_plot.ravel(), cmap=cmap, alpha=0.15)
+        norm_um = plt.Normalize(um_plot.min(), um_plot.max())
+        ax_uv2.scatter(loc_u_max_def[:,0],loc_u_max_def[:,1],loc_u_max_def[:,2],c=um_plot_max, cmap=cmap, norm=norm_um)
+        fig.colorbar(im_um2, ax=ax_uv2, format = '%.0E')
+        ax_uv2.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
+        ax_uv2.set_title('Max Displacement (m)\nVisual Deflection = {:.3E}:1'.format(scaling))
+        ax_uv2.set_xlabel('x (m)')
+        ax_uv2.set_ylabel('y (m)')
+        ax_uv2.set_zlabel('z (m)')
+        label_uv2 = 'u = {:.3E}m at ({:.1f}, {:.1f}, {:.1f})m'.format(um_plot.max(),loc_u_max[0],loc_u_max[1],loc_u_max[2])
+        ax_uv2.text(-self.length/2,-self.length,-self.length/2,label_uv2)
+        
         #Plotting von Mises stress
-        ax_vm = fig.add_subplot(2,1,2, projection='3d')
+        ax_vm = fig.add_subplot(3,2,3, projection='3d')
         im_vm = ax_vm.scatter(x_plot_def,y_plot_def,z_plot_def, c=vm_plot.ravel(), cmap=cmap)
         ax_vm.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
-        fig.colorbar(im_vm, ax=ax_vm, format='%.0e')
-        ax_vm.set_title('von Mises Stress (Pa)\nVisual Deflection = {:.3e}:1'.format(scaling))
+        fig.colorbar(im_vm, ax=ax_vm, format='%.0E')
+        ax_vm.set_title('von Mises Stress (Pa)\nVisual Deflection = {:.3E}:1'.format(scaling))
         ax_vm.set_xlabel('x (m)')
         ax_vm.set_ylabel('y (m)')
         ax_vm.set_zlabel('z (m)')
+        
+        #Plotting von Mises stress with marker and label for maximum value
+        ax_vm2 = fig.add_subplot(3,2,4, projection='3d')
+        im_vm2 = ax_vm2.scatter(x_plot_def,y_plot_def,z_plot_def, c=vm_plot.ravel(), cmap=cmap, alpha=0.15)
+        norm_vm = plt.Normalize(vm_plot.min(), vm_plot.max())
+        ax_vm2.scatter(loc_vm_max_def[:,0],loc_vm_max_def[:,1],loc_vm_max_def[:,2],c=vm_plot_max, cmap=cmap, norm=norm_vm)
+        ax_vm2.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
+        fig.colorbar(im_vm2, ax=ax_vm2, format='%.0E')
+        ax_vm2.set_title('Max von Mises Stress (Pa)\nVisual Deflection = {:.3E}:1'.format(scaling))
+        ax_vm2.set_xlabel('x (m)')
+        ax_vm2.set_ylabel('y (m)')
+        ax_vm2.set_zlabel('z (m)')
+        label_vm2 = 'sigma = {:.3E}Pa at ({:.1f}, {:.1f}, {:.1f})m'.format(vm_plot.max(),loc_vm_max[0],loc_vm_max[1],loc_vm_max[2])
+        ax_vm2.text(-self.length/2,-self.length,-self.length/2,label_vm2)
+        
+        #Plotting safety factor
+        ax_sf = fig.add_subplot(3,2,5, projection='3d')
+        im_sf = ax_sf.scatter(x_plot_def,y_plot_def,z_plot_def, c=sf_plot.ravel(), cmap=cmap)
+        ax_sf.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
+        fig.colorbar(im_sf, ax=ax_sf, format='%.1E')
+        ax_sf.set_title('Safety Factor\nVisual Deflection = {:.3E}:1'.format(scaling))
+        ax_sf.set_xlabel('x (m)')
+        ax_sf.set_ylabel('y (m)')
+        ax_sf.set_zlabel('z (m)')
+        
+        #Plotting safety factor with marker and label for minimum value
+        ax_sf2 = fig.add_subplot(3,2,6, projection='3d')
+        im_sf2 = ax_sf2.scatter(x_plot_def,y_plot_def,z_plot_def, c=sf_plot.ravel(), cmap=cmap, alpha=0.15)
+        norm_sf = plt.Normalize(sf_plot.min(), sf_plot.max())
+        ax_sf2.scatter(loc_vm_max_def[:,0],loc_vm_max_def[:,1],loc_vm_max_def[:,2],c=vm_plot_max, cmap=cmap, norm=norm_sf)
+        ax_sf2.auto_scale_xyz([0,self.length],[-self.length/2,self.length/2],[-self.length/2,self.length/2])
+        fig.colorbar(im_sf2, ax=ax_sf2, format='%.1E')
+        ax_sf2.set_title('Min Safety Factor\nVisual Deflection = {:.3E}:1'.format(scaling))
+        ax_sf2.set_xlabel('x (m)')
+        ax_sf2.set_ylabel('y (m)')
+        ax_sf2.set_zlabel('z (m)')
+        #Label: SF > SFlim if SF was adjusted to see low SF near part failure
+        if not high_sf:
+            label_sf2 = 'SF = {:.1f} at ({:.1f}, {:.1f}, {:.1f})m'.format(sf_plot.min(),loc_vm_max[0],loc_vm_max[1],loc_vm_max[2])
+        else:
+            label_sf2 = 'SF > {:.1f} at ({:.1f}, {:.1f}, {:.1f})m'.format(sf_plot.min(),loc_vm_max[0],loc_vm_max[1],loc_vm_max[2])
+        ax_sf2.text(-self.length/2,-self.length,-self.length/2,label_sf2)
         
         plt.show()
         
@@ -262,5 +359,5 @@ class beamProblem:
                 'Displacement Vectors':uv_plot, 
                 'Stress Magnitudes': vm_plot}
 
-beam = beamProblem('steel', Rectangle(0.2,0.2), 1, 16, "clamped pinned", None)
+beam = beamProblem('steel', Rectangle(0.2,0.2), 1, 16, "clamped pinned", None) #Why does this have a split between deformed and not deformed?
 output = beam.solution()
