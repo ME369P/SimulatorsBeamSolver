@@ -240,35 +240,21 @@ class beamProblem:
         y_plot_def = y_plot3d + scaling * u_vec_j
         z_plot_def = z_plot3d + scaling * u_vec_k
         
-        #Finding where deformation and stress at each at a maximum
+        #Finding where deformation and stress are each at a maximum
         loc_u_max = []
         um_plot_max = []
-        loc_u_max_def = [] #Stores deformed location of max u to plot
         loc_vm_max = []
         vm_plot_max = []
-        loc_vm_max_def = [] #Stores deformed location of max stress to plot
         for i in range(um_plot.size):
             if um_plot[i] == um_plot.max():
                 um_plot_max.append(um_plot.max())
                 loc_u_max = list(coordinates[i])
-                loc_next_def = []
-                loc_next_def.append(coordinates[i,0] + scaling * u_vec_i[i])
-                loc_next_def.append(coordinates[i,1] + scaling * u_vec_j[i])
-                loc_next_def.append(coordinates[i,2] + scaling * u_vec_k[i])
-                loc_u_max_def.append(loc_next_def)
             if vm_plot[i] == vm_plot.max():
                 vm_plot_max.append(vm_plot.max())
                 loc_vm_max = list(coordinates[i])
-                loc_next_def = []
-                loc_next_def.append(coordinates[i,0] + scaling * u_vec_i[i])
-                loc_next_def.append(coordinates[i,1] + scaling * u_vec_j[i])
-                loc_next_def.append(coordinates[i,2] + scaling * u_vec_k[i])
-                loc_vm_max_def.append(loc_next_def)
         #Convert to numpy arrays for plotting
         um_plot_max = np.array(um_plot_max)
-        loc_u_max_def = np.array(loc_u_max_def)
         vm_plot_max = np.array(vm_plot_max)
-        loc_vm_max_def = np.array(loc_vm_max_def)
         
         #Plot Results
         #%matplotlib auto #Uncomment to set backend if ipy file 
@@ -326,7 +312,3 @@ beam = beamProblem(material, cross_section, length, num_elements, boundary_condi
 
 # Solution
 output = beam.solution()
-
-
-
-
